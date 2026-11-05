@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>Exhibition</title>
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png">
 <style>
   html, body { margin: 0; min-height: 100%; background: #000; color: #fff; }
   body {
@@ -15,9 +18,14 @@
     font: 300 clamp(20px, 3.4vw, 34px)/1.25 system-ui, -apple-system, "Helvetica Neue", sans-serif;
     letter-spacing: .01em;
   }
-  ul { list-style: none; margin: 0; padding: 48px 24px; }
-  li + li { margin-top: .9em; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+  ul { list-style: none; margin: 0; padding: max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom)); }
+  li + li { margin-top: .25em; }
   a {
+    display: inline-block;
+    padding: .3em 0;          /* ≥ 48px touch target */
+    min-height: 48px;
     color: inherit;
     text-decoration: none;
     opacity: .82;

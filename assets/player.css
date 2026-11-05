@@ -4,16 +4,24 @@
 
 html, body {
   margin: 0;
+  width: 100%;
   height: 100%;
   background: #000;
   color: #fff;
   overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  touch-action: manipulation;          /* no double-tap zoom, no tap delay */
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;          /* no long-press save sheet */
   user-select: none;
   -webkit-user-select: none;
 }
 
-body { cursor: default; }
 body.idle { cursor: none; }
 
 button {
@@ -22,125 +30,148 @@ button {
   background: none;
   color: inherit;
   padding: 0;
+  font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
-/* ---------- video ---------- */
+button:focus { outline: none; }
+button:focus-visible { outline: 1px solid rgba(255, 255, 255, .6); outline-offset: 6px; border-radius: 50%; }
 
-video {
+/* ---------- media ---------- */
+
+video,
+.surface {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+video {
   object-fit: contain;
   background: #000;
+  pointer-events: none;   /* taps go to .surface, never to native video UI */
 }
 
-video::cue {
-  background: rgba(0, 0, 0, .55);
-  color: #fff;
-  font: 400 clamp(14px, 2.2vw, 24px)/1.35 system-ui, -apple-system, "Helvetica Neue", sans-serif;
-}
+.surface { z-index: 1; }
 
-/* ---------- shared controls ---------- */
+/* ---------- play / pause ---------- */
 
 .toggle {
   position: fixed;
+  z-index: 2;
   top: 50%;
   left: 50%;
-  width: 96px;
-  height: 96px;
-  margin: -48px 0 0 -48px;
+  width: 112px;
+  height: 112px;
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  transition: opacity .5s ease;
+  transition: opacity .4s ease;
 }
 
-.toggle svg { width: 100%; height: 100%; overflow: visible; }
+.toggle svg { width: 100%; height: 100%; overflow: visible; display: block; }
+
+body.video .toggle svg { filter: drop-shadow(0 0 12px rgba(0, 0, 0, .45)); }
 
 .icon-pause { display: none; }
 body.playing .icon-play { display: none; }
 body.playing .icon-pause { display: block; }
 
+/* buffering: soft pulse instead of a spinner */
+body.waiting .toggle { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* ---------- video progress bar ---------- */
+
 .bar {
   position: fixed;
+  z-index: 2;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 28px;
+  height: calc(48px + env(safe-area-inset-bottom));   /* large touch target */
+  touch-action: none;
   cursor: pointer;
-  transition: opacity .5s ease;
+  transition: opacity .4s ease;
 }
 
+.bar::before,
 .bar span {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 0;
-  background: rgba(255, 255, 255, .85);
-}
-
-.bar::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, .15);
+  bottom: env(safe-area-inset-bottom);
+  height: 3px;
+  transition: height .2s ease;
 }
 
-/* video: hide controls while playing and idle */
-body.video.playing.idle .toggle,
-body.video.playing.idle .bar { opacity: 0; pointer-events: none; }
-body.video.playing .toggle { opacity: 0; }
-body.video.playing:not(.idle) .toggle { opacity: .9; }
+.bar::before { background: rgba(255, 255, 255, .18); }
+
+.bar span {
+  background: rgba(255, 255, 255, .9);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+body.scrubbing .bar::before,
+body.scrubbing .bar span { height: 6px; }
+
+/* video: controls fade away while playing */
+body.video.playing .toggle { opacity: .85; }
+body.video.playing.idle:not(.scrubbing) .toggle,
+body.video.playing.idle:not(.scrubbing) .bar { opacity: 0; pointer-events: none; }
 
 /* ---------- audio ---------- */
 
 body.audio .toggle {
-  width: 160px;
-  height: 160px;
-  margin: -80px 0 0 -80px;
+  width: min(200px, 42vmin);
+  height: min(200px, 42vmin);
 }
 
-.ring-bg { stroke: rgba(255, 255, 255, .15); }
-.ring { stroke: rgba(255, 255, 255, .85); transition: stroke-dashoffset .25s linear; }
+.ring-bg { stroke: rgba(255, 255, 255, .18); }
+.ring { stroke: rgba(255, 255, 255, .9); transition: stroke-dashoffset .3s linear; }
 
 .dots {
   position: fixed;
+  z-index: 2;
   left: 0;
   right: 0;
-  top: calc(50% + 120px);
+  top: calc(50% + min(100px, 21vmin) + 28px);
   display: flex;
   justify-content: center;
   gap: 4px;
 }
 
 .dots button {
-  width: 32px;
-  height: 32px;
+  width: 48px;           /* ≥ 48dp touch target */
+  height: 48px;
   display: grid;
   place-items: center;
 }
 
 .dots button::after {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .25);
+  background: rgba(255, 255, 255, .28);
   transition: background .3s ease, transform .3s ease;
 }
 
 .dots button.on::after {
   background: #fff;
-  transform: scale(1.25);
+  transform: scale(1.3);
 }
 
 /* ---------- not yet available ---------- */
 
 body.pending .toggle,
 body.pending .bar,
-body.pending .dots { opacity: .18 !important; pointer-events: none; }
+body.pending .dots { opacity: .18 !important; pointer-events: none; animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

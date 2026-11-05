@@ -1,147 +1,299 @@
-// Minimal fullscreen player. Configured from <body> data attributes:
+// Minimal fullscreen player, built for touch tablets (Android Chrome) first.
+// Configured from <body> data attributes:
 //   data-type="audio" | "video"
-//   data-src="a.mp3, b.mp3"        (one or more files, relative to the page)
-//   data-poster="poster.jpg"       (video, optional)
-//   data-captions="captions.vtt"   (video, optional)
+//   data-src="a.mp3, b.mp3"     one or more files, relative to the page
+//   data-poster="poster.jpg"    video, optional
 (function () {
+  "use strict";
+
   const body = document.body;
-  const type = body.dataset.type;
+  const type = body.dataset.type === "video" ? "video" : "audio";
   const sources = (body.dataset.src || "").split(",").map((s) => s.trim()).filter(Boolean);
   body.classList.add(type);
 
-  const PLAY = '<path class="icon-play" d="M38 30 L72 50 L38 70 Z" fill="currentColor"/>';
+  const IDLE_MS = 3000;
+  const PLAY = '<path class="icon-play" d="M38 29 L73 50 L38 71 Z" fill="currentColor"/>';
   const PAUSE =
-    '<g class="icon-pause" fill="currentColor"><rect x="36" y="31" width="9" height="38"/><rect x="55" y="31" width="9" height="38"/></g>';
+    '<g class="icon-pause" fill="currentColor"><rect x="35" y="30" width="10" height="40" rx="1"/><rect x="55" y="30" width="10" height="40" rx="1"/></g>';
+
+  // ---------- elements ----------
+
+  const media = document.createElement(type);
+  media.preload = "metadata";
+  media.setAttribute("playsinline", "");
+  media.setAttribute("controlslist", "nodownload noplaybackrate");
+  media.setAttribute("disableremoteplayback", "");
+  if (type === "video") {
+    media.setAttribute("disablepictureinpicture", "");
+    if (body.dataset.poster) media.poster = body.dataset.poster;
+  }
+  body.appendChild(media);
+
+  // Full-screen tap surface (sits above the video, below the controls).
+  const surface = document.createElement("div");
+  surface.className = "surface";
+  body.appendChild(surface);
 
   const toggle = document.createElement("button");
+  toggle.type = "button";
   toggle.className = "toggle";
-  toggle.setAttribute("aria-label", "Play / pause");
+  body.appendChild(toggle);
 
-  let media;
-  let ring;
-  let dots = [];
-  let index = 0;
+  let ring = null;
+  let fill = null;
+  const RING_C = 2 * Math.PI * 48;
 
   if (type === "video") {
-    media = document.createElement("video");
-    media.playsInline = true;
-    media.preload = "metadata";
-    if (body.dataset.poster) media.poster = body.dataset.poster;
-    if (body.dataset.captions) {
-      const track = document.createElement("track");
-      track.kind = "captions";
-      track.srclang = "en";
-      track.src = body.dataset.captions;
-      track.default = true;
-      media.appendChild(track);
-    }
-    body.appendChild(media);
-    toggle.innerHTML = '<svg viewBox="0 0 100 100">' + PLAY + PAUSE + "</svg>";
-    body.appendChild(toggle);
+    toggle.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true">' + PLAY + PAUSE + "</svg>";
 
     const bar = document.createElement("div");
     bar.className = "bar";
-    const fill = document.createElement("span");
+    bar.setAttribute("role", "slider");
+    bar.setAttribute("aria-label", "Seek");
+    bar.tabIndex = -1;
+    fill = document.createElement("span");
     bar.appendChild(fill);
     body.appendChild(bar);
-    media.addEventListener("timeupdate", () => {
-      fill.style.width = media.duration ? (media.currentTime / media.duration) * 100 + "%" : "0";
-    });
-    bar.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (media.duration) media.currentTime = (e.clientX / bar.clientWidth) * media.duration;
-    });
-
-    media.addEventListener("click", togglePlay);
-    media.addEventListener("dblclick", fullscreen);
+    setupScrub(bar);
   } else {
-    media = document.createElement("audio");
-    media.preload = "metadata";
-    body.appendChild(media);
-
-    const R = 48;
-    const C = 2 * Math.PI * R;
     toggle.innerHTML =
-      '<svg viewBox="0 0 100 100">' +
-      `<circle class="ring-bg" cx="50" cy="50" r="${R}" fill="none" stroke-width="1"/>` +
-      `<circle class="ring" cx="50" cy="50" r="${R}" fill="none" stroke-width="1.5"` +
-      ` stroke-dasharray="${C}" stroke-dashoffset="${C}" transform="rotate(-90 50 50)"/>` +
+      '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<circle class="ring-bg" cx="50" cy="50" r="48" fill="none" stroke-width="1"/>' +
+      `<circle class="ring" cx="50" cy="50" r="48" fill="none" stroke-width="1.5" stroke-dasharray="${RING_C}"` +
+      ` stroke-dashoffset="${RING_C}" transform="rotate(-90 50 50)"/>` +
       '<g transform="translate(50 50) scale(.55) translate(-50 -50)">' + PLAY + PAUSE + "</g></svg>";
-    body.appendChild(toggle);
     ring = toggle.querySelector(".ring");
-    media.addEventListener("timeupdate", () => {
-      const p = media.duration ? media.currentTime / media.duration : 0;
-      ring.style.strokeDashoffset = C * (1 - p);
-    });
-
-    if (sources.length > 1) {
-      const nav = document.createElement("nav");
-      nav.className = "dots";
-      sources.forEach((_, i) => {
-        const b = document.createElement("button");
-        b.setAttribute("aria-label", "Track " + (i + 1));
-        b.addEventListener("click", () => load(i, true));
-        nav.appendChild(b);
-        dots.push(b);
-      });
-      body.appendChild(nav);
-    }
-
-    media.addEventListener("ended", () => {
-      if (index < sources.length - 1) load(index + 1, true);
-      else load(0, false);
-    });
   }
 
+  const dots = [];
+  if (sources.length > 1) {
+    const nav = document.createElement("nav");
+    nav.className = "dots";
+    sources.forEach((_, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-label", "Track " + (i + 1));
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        load(i, true);
+      });
+      nav.appendChild(b);
+      dots.push(b);
+    });
+    body.appendChild(nav);
+  }
+
+  // ---------- playback ----------
+
+  let index = 0;
+
+  function load(i, autoplay) {
+    index = i;
+    body.classList.remove("pending", "ended");
+    media.src = sources[i];
+    dots.forEach((d, j) => {
+      d.classList.toggle("on", j === i);
+      if (j === i) d.setAttribute("aria-current", "true");
+      else d.removeAttribute("aria-current");
+    });
+    progress();
+    if (autoplay) play();
+  }
+
+  function play() {
+    enterFullscreen();
+    const p = media.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+
+  function togglePlay() {
+    if (body.classList.contains("pending")) return;
+    if (media.paused || media.ended) play();
+    else media.pause();
+    wake();
+  }
+
+  function progress() {
+    const p = media.duration ? Math.min(1, media.currentTime / media.duration) : 0;
+    if (fill) fill.style.transform = `scaleX(${p})`;
+    if (ring) ring.style.strokeDashoffset = RING_C * (1 - p);
+  }
+
+  media.addEventListener("timeupdate", progress);
+  media.addEventListener("durationchange", progress);
+  media.addEventListener("play", () => {
+    body.classList.add("playing");
+    body.classList.remove("ended");
+    toggle.setAttribute("aria-label", "Pause");
+    requestWakeLock();
+    wake();
+  });
+  media.addEventListener("pause", () => {
+    body.classList.remove("playing");
+    toggle.setAttribute("aria-label", "Play");
+    releaseWakeLock();
+    wake();
+  });
+  media.addEventListener("waiting", () => body.classList.add("waiting"));
+  ["playing", "canplay", "pause", "error"].forEach((ev) =>
+    media.addEventListener(ev, () => body.classList.remove("waiting"))
+  );
+  media.addEventListener("error", () => body.classList.add("pending"));
+  media.addEventListener("ended", () => {
+    if (index < sources.length - 1) {
+      load(index + 1, true);
+    } else {
+      body.classList.add("ended");
+      if (sources.length > 1) load(0, false);
+      else media.currentTime = 0;
+      exitFullscreen();
+    }
+  });
+  toggle.setAttribute("aria-label", "Play");
+
+  // ---------- touch / pointer ----------
+
+  // Remember whether the controls were hidden at the moment the finger went down,
+  // so the first tap on a playing video only reveals the controls.
+  let wasIdle = false;
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      wasIdle = body.classList.contains("idle");
+      wake();
+    },
+    { capture: true, passive: true }
+  );
+  window.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "mouse") wake();
+  }, { passive: true });
+
+  surface.addEventListener("click", () => {
+    if (type === "video" && wasIdle && !media.paused) return; // just show controls
+    togglePlay();
+  });
   toggle.addEventListener("click", (e) => {
     e.stopPropagation();
     togglePlay();
   });
 
-  media.addEventListener("play", () => body.classList.add("playing"));
-  media.addEventListener("pause", () => body.classList.remove("playing"));
-  media.addEventListener("error", () => body.classList.add("pending"));
+  // No long-press menus, image/video save sheets or accidental zoom.
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("dblclick", (e) => e.preventDefault());
+  document.addEventListener("gesturestart", (e) => e.preventDefault());
 
-  function load(i, autoplay) {
-    index = i;
-    body.classList.remove("pending");
-    media.src = sources[i];
-    dots.forEach((d, j) => d.classList.toggle("on", j === i));
-    if (autoplay) media.play().catch(() => {});
+  function setupScrub(bar) {
+    let dragging = false;
+    let resume = false;
+    const seekTo = (x) => {
+      if (!media.duration) return;
+      const r = bar.getBoundingClientRect();
+      const p = Math.max(0, Math.min(1, (x - r.left) / r.width));
+      media.currentTime = p * media.duration;
+      progress();
+    };
+    bar.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      if (!media.duration) return;
+      dragging = true;
+      resume = !media.paused;
+      try { bar.setPointerCapture(e.pointerId); } catch (_) {}
+      body.classList.add("scrubbing");
+      seekTo(e.clientX);
+    });
+    bar.addEventListener("pointermove", (e) => {
+      if (dragging) {
+        seekTo(e.clientX);
+        wake();
+      }
+    });
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      body.classList.remove("scrubbing");
+      try { bar.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (resume && media.paused) play();
+    };
+    bar.addEventListener("pointerup", end);
+    bar.addEventListener("pointercancel", end);
+    bar.addEventListener("click", (e) => e.stopPropagation());
   }
 
-  function togglePlay() {
-    if (media.paused) media.play().catch(() => {});
-    else media.pause();
-  }
+  // ---------- idle: hide cursor and video controls ----------
 
-  function fullscreen() {
-    const el = document.documentElement;
-    if (document.fullscreenElement) document.exitFullscreen();
-    else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-    else if (media.webkitEnterFullscreen) media.webkitEnterFullscreen();
-  }
-
-  // Hide the cursor and video controls after a moment of inactivity.
   let idleTimer;
   function wake() {
     body.classList.remove("idle");
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => body.classList.add("idle"), 2500);
+    idleTimer = setTimeout(() => body.classList.add("idle"), IDLE_MS);
   }
-  ["mousemove", "touchstart", "keydown"].forEach((ev) => window.addEventListener(ev, wake, { passive: true }));
+  window.addEventListener("keydown", wake);
   wake();
 
+  // ---------- fullscreen ----------
+
+  function enterFullscreen() {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen) return;
+    if (window.matchMedia("(display-mode: fullscreen)").matches) return;
+    el.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+  }
+  function exitFullscreen() {
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  }
+
+  // ---------- keep the screen awake while playing ----------
+
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ("wakeLock" in navigator && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => (wakeLock = null));
+      }
+    } catch (_) {}
+  }
+  function releaseWakeLock() {
+    if (wakeLock) wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !media.paused) requestWakeLock();
+  });
+
+  // ---------- media session (lock screen / notification controls) ----------
+
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: document.title });
+      navigator.mediaSession.setActionHandler("play", play);
+      navigator.mediaSession.setActionHandler("pause", () => media.pause());
+      if (sources.length > 1) {
+        navigator.mediaSession.setActionHandler("nexttrack", () => load((index + 1) % sources.length, true));
+        navigator.mediaSession.setActionHandler("previoustrack", () =>
+          load((index - 1 + sources.length) % sources.length, true)
+        );
+      }
+    } catch (_) {}
+  }
+
+  // ---------- keyboard ----------
+
   window.addEventListener("keydown", (e) => {
+    // A focused button already handles Space/Enter itself.
+    if ((e.code === "Space" || e.code === "Enter") && e.target.closest && e.target.closest("button")) return;
     if (e.code === "Space" || e.code === "Enter") {
       e.preventDefault();
       togglePlay();
     } else if (e.key === "f") {
-      fullscreen();
-    } else if (e.key === "ArrowRight" && sources.length > 1) {
-      load((index + 1) % sources.length, !media.paused);
-    } else if (e.key === "ArrowLeft" && sources.length > 1) {
-      load((index - 1 + sources.length) % sources.length, !media.paused);
+      if (document.fullscreenElement) exitFullscreen();
+      else enterFullscreen();
+    } else if (e.key === "ArrowRight") {
+      if (sources.length > 1) load((index + 1) % sources.length, !media.paused);
+      else if (media.duration) media.currentTime = Math.min(media.duration, media.currentTime + 5);
+    } else if (e.key === "ArrowLeft") {
+      if (sources.length > 1) load((index - 1 + sources.length) % sources.length, !media.paused);
+      else media.currentTime = Math.max(0, media.currentTime - 5);
     }
   });
 
