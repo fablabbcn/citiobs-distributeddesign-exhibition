@@ -17,6 +17,7 @@ into the folder with the name above and push. To change the type or file list, e
 `data-type` / `data-src` attributes on `<body>` in that folder's `index.html`.
 
 Touch: tap to play/pause (on a playing video the first tap only reveals the controls) · drag the bottom line to seek · tap the dots to switch tracks. Playback goes fullscreen and keeps the screen awake.
+Videos loop by default; the small loop icon (top-right, visible with the controls) turns it off. The choice is stored in a `loop` cookie for the whole site (1 year).
 Keyboard: Space play/pause · f fullscreen · ←/→ switch track or skip 5 s.
 
 For the exhibition tablet: open the site in Chrome, then menu → Add to Home screen. Launched from the icon it runs fullscreen with no browser bar.

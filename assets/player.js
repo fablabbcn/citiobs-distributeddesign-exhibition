@@ -55,6 +55,30 @@
     bar.appendChild(fill);
     body.appendChild(bar);
     setupScrub(bar);
+
+    // Loop: on by default, a small corner toggle turns it off (remembered in a cookie).
+    const loopBtn = document.createElement("button");
+    loopBtn.type = "button";
+    loopBtn.className = "loop";
+    loopBtn.setAttribute("aria-label", "Loop");
+    loopBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"' +
+      ' stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/>' +
+      '<path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>';
+    body.appendChild(loopBtn);
+    const setLoop = (on) => {
+      media.loop = on;
+      body.classList.toggle("no-loop", !on);
+      loopBtn.setAttribute("aria-pressed", String(on));
+    };
+    setLoop(getCookie("loop") !== "0");
+    loopBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setLoop(!media.loop);
+      setCookie("loop", media.loop ? "1" : "0");
+      wake();
+    });
   } else {
     toggle.innerHTML =
       '<svg viewBox="0 0 100 100" aria-hidden="true">' +
@@ -81,6 +105,28 @@
       dots.push(b);
     });
     body.appendChild(nav);
+  }
+
+  // ---------- cookie (shared by every page of the site) ----------
+
+  function sitePath() {
+    // player.js lives in <site>/assets/, so the site root is two levels up from it.
+    const src = document.currentScript ? document.currentScript.src : "";
+    try {
+      return new URL("..", new URL(".", src)).pathname;
+    } catch (_) {
+      return "/";
+    }
+  }
+  const COOKIE_PATH = sitePath();
+  function getCookie(name) {
+    const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function setCookie(name, value) {
+    document.cookie =
+      `${name}=${encodeURIComponent(value)}; path=${COOKIE_PATH}; max-age=${60 * 60 * 24 * 365}; SameSite=Lax` +
+      (location.protocol === "https:" ? "; Secure" : "");
   }
 
   // ---------- playback ----------

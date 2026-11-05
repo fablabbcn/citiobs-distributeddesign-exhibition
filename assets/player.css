@@ -119,7 +119,27 @@ body.waiting .toggle { animation: pulse 1.4s ease-in-out infinite; }
 body.scrubbing .bar::before,
 body.scrubbing .bar span { height: 6px; }
 
+/* ---------- loop toggle (video) ---------- */
+
+.loop {
+  position: fixed;
+  z-index: 2;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  opacity: .7;
+  transition: opacity .4s ease;
+}
+
+.loop svg { width: 20px; height: 20px; filter: drop-shadow(0 0 6px rgba(0, 0, 0, .6)); }
+body.no-loop .loop { opacity: .25; }
+
 /* video: controls fade away while playing */
+body.video.playing.idle:not(.scrubbing) .loop { opacity: 0; pointer-events: none; }
+
 body.video.playing .toggle { opacity: .85; }
 body.video.playing.idle:not(.scrubbing) .toggle,
 body.video.playing.idle:not(.scrubbing) .bar { opacity: 0; pointer-events: none; }
