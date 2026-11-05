@@ -9,7 +9,7 @@ Live site (GitHub Pages): https://fablabbcn.github.io/citiobs-distributeddesign-
 | `marcus-smith/` | `track-1.mp3` … `track-5.mp3` (Abiir Shirdoon, Eliz Mizon, Jace Clarkson, Judit Davis, Shona Jemphrey) |
 | `katerina-kovarickova/` | `video.mp4` — pending |
 | `morris-mburu-1/` | `audio.mp3` |
-| `morris-mburu-2/` | `video.mp4` — pending |
+| `morris-mburu-2/` | `video.mp4`, `poster.jpg` (1080p re-encode of the 4K original) |
 | `wu-siou-ming/` | `video.mp4`, `poster.jpg` |
 
 A page whose file is missing shows a dimmed play button. To fill it in, drop the file
