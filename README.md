@@ -7,7 +7,7 @@ Live site (GitHub Pages): https://fablabbcn.github.io/citiobs-distributeddesign-
 | Page | Media |
 |---|---|
 | `marcus-smith/` | `track-1.mp3` … `track-5.mp3` (Abiir Shirdoon, Eliz Mizon, Jace Clarkson, Judit Davis, Shona Jemphrey) |
-| `katerina-kovarickova/` | `video.mp4` — pending |
+| `katerina-kovarickova/` | `video.mp4`, `poster.jpg` (from Instagram post DaVuscPObtt, VP9 → H.264) |
 | `morris-mburu-1/` | `audio.mp3` |
 | `morris-mburu-2/` | `video.mp4`, `poster.jpg` (1080p re-encode of the 4K original) |
 | `wu-siou-ming/` | `video.mp4`, `poster.jpg` |
