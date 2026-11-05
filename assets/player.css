@@ -1,0 +1,146 @@
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body { cursor: default; }
+body.idle { cursor: none; }
+
+button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ---------- video ---------- */
+
+video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+video::cue {
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font: 400 clamp(14px, 2.2vw, 24px)/1.35 system-ui, -apple-system, "Helvetica Neue", sans-serif;
+}
+
+/* ---------- shared controls ---------- */
+
+.toggle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  display: grid;
+  place-items: center;
+  transition: opacity .5s ease;
+}
+
+.toggle svg { width: 100%; height: 100%; overflow: visible; }
+
+.icon-pause { display: none; }
+body.playing .icon-play { display: none; }
+body.playing .icon-pause { display: block; }
+
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  cursor: pointer;
+  transition: opacity .5s ease;
+}
+
+.bar span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background: rgba(255, 255, 255, .85);
+}
+
+.bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, .15);
+}
+
+/* video: hide controls while playing and idle */
+body.video.playing.idle .toggle,
+body.video.playing.idle .bar { opacity: 0; pointer-events: none; }
+body.video.playing .toggle { opacity: 0; }
+body.video.playing:not(.idle) .toggle { opacity: .9; }
+
+/* ---------- audio ---------- */
+
+body.audio .toggle {
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+}
+
+.ring-bg { stroke: rgba(255, 255, 255, .15); }
+.ring { stroke: rgba(255, 255, 255, .85); transition: stroke-dashoffset .25s linear; }
+
+.dots {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(50% + 120px);
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.dots button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+
+.dots button::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .25);
+  transition: background .3s ease, transform .3s ease;
+}
+
+.dots button.on::after {
+  background: #fff;
+  transform: scale(1.25);
+}
+
+/* ---------- not yet available ---------- */
+
+body.pending .toggle,
+body.pending .bar,
+body.pending .dots { opacity: .18 !important; pointer-events: none; }
